@@ -1,0 +1,58 @@
+pr:
+  none
+
+pool:
+  vmImage: 'macOS-latest'
+
+jobs:
+  - job: Mobile
+    displayName: Build Flutter App
+    steps:
+      - task: JavaToolInstaller@0
+        displayName: Install Java 11
+        inputs:
+          versionSpec: 11
+          jdkArchitectureOption: 'x64'
+          jdkSourceOption: 'PreInstalled'
+
+      - task: FlutterInstall@0
+        displayName: Install Flutter
+        inputs:
+          mode: 'auto'
+          channel: 'stable'
+          version: 'latest'
+
+      - task: FlutterBuild@0
+        displayName: Build Flutter Android app (aab)
+        inputs:
+          target: 'aab'
+          projectDirectory: '.'
+          entryPoint: "lib/main.dart"
+          iosCodesign: false
+
+      - task: FlutterBuild@0
+        displayName: Build Flutter iOS app (ipa)
+        inputs:
+          target: 'ipa'
+          projectDirectory: '.'
+          entryPoint: "lib/main.dart"
+          iosCodesign: false
+
+      - task: CopyFiles@2
+        displayName: Copy aab to staging directory
+        inputs:
+          contents: '**/*.aab'
+          targetFolder: '$(build.artifactStagingDirectory)'
+          OverWrite: true
+
+      - task: CopyFiles@2
+        displayName: Copy ipa to staging directory
+        inputs:
+          contents: '**/*.ipa'
+          targetFolder: '$(build.artifactStagingDirectory)'
+          OverWrite: true
+
+      - task: PublishBuildArtifacts@1
+        inputs:
+          artifactName: 'drop'
+      
