@@ -30,25 +30,10 @@ jobs:
           entryPoint: "lib/main.dart"
           iosCodesign: false
 
-      - task: FlutterBuild@0
-        displayName: Build Flutter iOS app (ipa)
-        inputs:
-          target: 'ipa'
-          projectDirectory: '.'
-          entryPoint: "lib/main.dart"
-          iosCodesign: false
-
       - task: CopyFiles@2
         displayName: Copy aab to staging directory
         inputs:
           contents: '**/*.aab'
-          targetFolder: '$(build.artifactStagingDirectory)'
-          OverWrite: true
-
-      - task: CopyFiles@2
-        displayName: Copy ipa to staging directory
-        inputs:
-          contents: '**/*.ipa'
           targetFolder: '$(build.artifactStagingDirectory)'
           OverWrite: true
 
