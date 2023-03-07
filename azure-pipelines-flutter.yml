@@ -1,17 +1,25 @@
+trigger:
+  none
+
 pr:
   none
 
 pool:
-  vmImage: 'macOS-latest'
+  vmImage: 'windows-latest'
+  #vmImage: 'macOS-latest'
+
+variables:
+  signingKeyStoreFilePath: 'aab-keystore.jks'
+  aabFilePath: 'build/app/outputs/bundle/release/app-release.aab'
 
 jobs:
   - job: Mobile
     displayName: Build Flutter App
     steps:
       - task: JavaToolInstaller@0
-        displayName: Install Java 11
+        displayName: Install Java 17
         inputs:
-          versionSpec: 11
+          versionSpec: 17
           jdkArchitectureOption: 'x64'
           jdkSourceOption: 'PreInstalled'
 
@@ -30,14 +38,37 @@ jobs:
           entryPoint: "lib/main.dart"
           iosCodesign: false
 
+      - task: PowerShell@2
+        displayName: Save signing key store file
+        inputs:
+          targetType: inline
+          script: |
+            [byte[]]$keyStoreContent = [System.Convert]::FromBase64String("$(SIGNING_STORE_BASE64_CONTENT)")
+            [IO.File]::WriteAllBytes("$(signingKeyStoreFilePath)", $keyStoreContent)
+
+      - task: PowerShell@2
+        displayName: Sign Flutter Android app (aab)
+        inputs:
+          targetType: inline
+          script: jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -storepass $(SIGNING_STORE_PASSWORD) -keystore $(signingKeyStoreFilePath) $(aabFilePath) $(SIGNING_KEY_ALIAS)
+
+      - task: PowerShell@2
+        displayName: Delete signing key store file
+        condition: always()
+        inputs:
+          targetType: inline
+          script: Remove-Item -Path $(signingKeyStoreFilePath) -Force 
+
       - task: CopyFiles@2
         displayName: Copy aab to staging directory
+        condition: always()
         inputs:
-          contents: '**/*.aab'
+          contents: '**/app-release.aab'
           targetFolder: '$(build.artifactStagingDirectory)'
           OverWrite: true
 
       - task: PublishBuildArtifacts@1
+        condition: always()
         inputs:
           artifactName: 'drop'
       
