@@ -10,12 +10,20 @@ pool:
 
 variables:
   signingKeyStoreFilePath: 'aab-keystore.jks'
+  aabPropsRelativeFilePath: 'android/aab.properties'
   aabFilePath: 'build/app/outputs/bundle/release/app-release.aab'
 
 jobs:
   - job: Mobile
     displayName: Build Flutter App
     steps:
+      - task: PowerShell@2
+        displayName: Update the app id in properties file
+        inputs:
+          targetType: inline
+          script: |
+            "appId=$(APP_ID)`n" | Out-File -Filepath "$(Build.Repository.LocalPath)/$(aabPropsRelativeFilePath)" -Force
+
       - task: JavaToolInstaller@0
         displayName: Install Java 17
         inputs:
@@ -53,11 +61,18 @@ jobs:
           script: jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -storepass $(SIGNING_STORE_PASSWORD) -keystore $(signingKeyStoreFilePath) $(aabFilePath) $(SIGNING_KEY_ALIAS)
 
       - task: PowerShell@2
-        displayName: Delete signing key store file
+        displayName: Delete aab signing key store file
         condition: always()
         inputs:
           targetType: inline
           script: Remove-Item -Path $(signingKeyStoreFilePath) -Force 
+
+      # - task: PowerShell@2
+      #   displayName: Delete aab properties file
+      #   condition: always()
+      #   inputs:
+      #     targetType: inline
+      #     script: Remove-Item -Path "$(Build.Repository.LocalPath)/$(aabPropsFileRelativePath)" -Force 
 
       - task: CopyFiles@2
         displayName: Copy aab to staging directory
