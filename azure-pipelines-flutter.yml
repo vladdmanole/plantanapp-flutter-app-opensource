@@ -10,8 +10,8 @@ pool:
 
 variables:
   signingKeyStoreFilePath: 'aab-keystore.jks'
-  aabPropsRelativeFilePath: 'android/aab.properties'
   aabFilePath: 'build/app/outputs/bundle/release/app-release.aab'
+  imageFilePath: 'icon.png'
 
 jobs:
   - job: Mobile
@@ -42,6 +42,20 @@ jobs:
         inputs:
           projectDirectory: '.'
           arguments: 'pub run change_app_package_name:main $(APP_ID)'
+
+      - task: PowerShell@2
+        displayName: Save the icon file
+        inputs:
+          targetType: inline
+          script: |
+            [byte[]]$fileContent = [System.Convert]::FromBase64String("$(ICON_BASE64_CONTENT)")
+            [IO.File]::WriteAllBytes("$(imageFilePath)", $fileContent)
+
+      - task: FlutterCommand@0
+        displayName: Generate the icons
+        inputs:
+          projectDirectory: '.'
+          arguments: 'pub run flutter_launcher_icons'
 
       - task: FlutterBuild@0
         displayName: Build Flutter Android app (aab)

@@ -54,6 +54,9 @@ dev_dependencies:
   # Used to change the package name
   change_app_package_name: ^1.1.0
 
+  # Used to generate the icons
+  flutter_launcher_icons: "^0.12.0"
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -95,3 +98,16 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
+
+# Settings for generating the flutter icons
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "icon.png"
+  #min_sdk_android: 21 # android min sdk min:16, default 21
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false
