@@ -6,8 +6,8 @@ import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-//final Uri appUrl = Uri.parse(String.fromEnvironment('APP_URL', defaultValue: ''));
-final Uri appUrl = Uri.parse('https://idtag.apps.plantanapp.com/Barcode-Testing');
+final Uri appUrl = Uri.parse(String.fromEnvironment('APP_URL', defaultValue: ''));
+//final Uri appUrl = Uri.parse('https://idtag.apps.plantanapp.com/Barcode-Testing');
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();

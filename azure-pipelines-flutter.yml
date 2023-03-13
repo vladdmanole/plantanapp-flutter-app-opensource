@@ -66,6 +66,7 @@ jobs:
           iosCodesign: false
           buildName: $(APP_BUILD_NAME)
           buildNumber: $(APP_BUILD_NUMBER)
+          dartDefine: 'APP_URL=$(APP_URL)'
 
       - task: PowerShell@2
         displayName: Save signing key store file
