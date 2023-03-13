@@ -64,6 +64,7 @@ jobs:
           projectDirectory: '.'
           entryPoint: "lib/main.dart"
           iosCodesign: false
+          buildName: $(APP_BUILD_NAME)
 
       - task: PowerShell@2
         displayName: Save signing key store file
