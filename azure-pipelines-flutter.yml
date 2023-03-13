@@ -17,13 +17,6 @@ jobs:
   - job: Mobile
     displayName: Build Flutter App
     steps:
-      # - task: PowerShell@2
-      #   displayName: Update the app id in properties file
-      #   inputs:
-      #     targetType: inline
-      #     script: |
-      #       "appId=$(APP_ID)`n" | Out-File -Filepath "$(Build.Repository.LocalPath)/$(aabPropsRelativeFilePath)" -Force
-
       - task: JavaToolInstaller@0
         displayName: Install Java 17
         inputs:
@@ -38,20 +31,14 @@ jobs:
           channel: 'stable'
           version: 'latest'
 
-      # - task: PowerShell@2
-      #   displayName: Update the package name
-      #   inputs:
-      #     targetType: inline
-      #     script: |
-      #       flutter pub get
-      #       flutter pub run change_app_package_name:main $(APP_ID)
-
       - task: FlutterCommand@0
+        displayName: Install flutter packages
         inputs:
           projectDirectory: '.'
           arguments: 'pub get'
 
       - task: FlutterCommand@0
+        displayName: Change the package name
         inputs:
           projectDirectory: '.'
           arguments: 'pub run change_app_package_name:main $(APP_ID)'
