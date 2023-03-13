@@ -37,11 +37,19 @@ jobs:
           projectDirectory: '.'
           arguments: 'pub get'
 
-      - task: FlutterCommand@0
-        displayName: Change the package name
-        inputs:
-          projectDirectory: '.'
-          arguments: 'pub run change_app_package_name:main $(APP_ID)'
+      # - task: FlutterCommand@0
+      #   displayName: Change the package name
+      #   inputs:
+      #     projectDirectory: '.'
+      #     arguments: 'pub run change_app_package_name:main $(APP_ID)'
+
+      # - task: FlutterCommand@0
+      #   displayName: Change the bundle id
+      #   inputs:
+      #     projectDirectory: '.'
+      #     arguments: 'pub run rename --bundleId $(APP_ID) --target android'
+
+      
 
       - task: PowerShell@2
         displayName: Save the icon file
@@ -56,6 +64,27 @@ jobs:
         inputs:
           projectDirectory: '.'
           arguments: 'pub run flutter_launcher_icons'
+
+      - task: FlutterCommand@0
+        displayName: Change the bundle id
+        inputs:
+          projectDirectory: '.'
+          arguments: 'pub run rename --bundleId $(APP_ID) --target android'
+          #arguments: 'pub run rename --bundleId $(APP_ID) --target android'
+
+      - task: FlutterCommand@0
+        displayName: Change the app name
+        inputs:
+          projectDirectory: '.'
+          arguments: 'pub run rename --appname $(APP_NAME) --target android'
+
+      - task: CopyFiles@2
+        displayName: Copy manifest to staging directory
+        condition: always()
+        inputs:
+          contents: '**/AndroidManifest.xml'
+          targetFolder: '$(build.artifactStagingDirectory)'
+          OverWrite: true
 
       - task: FlutterBuild@0
         displayName: Build Flutter Android app (aab)
@@ -101,6 +130,14 @@ jobs:
         condition: always()
         inputs:
           contents: '**/app-release.aab'
+          targetFolder: '$(build.artifactStagingDirectory)'
+          OverWrite: true
+
+      - task: CopyFiles@2
+        displayName: Copy manifest to staging directory
+        condition: always()
+        inputs:
+          contents: '**/AndroidManifest.xml'
           targetFolder: '$(build.artifactStagingDirectory)'
           OverWrite: true
 
