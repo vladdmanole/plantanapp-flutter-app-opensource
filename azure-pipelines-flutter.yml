@@ -35,21 +35,7 @@ jobs:
         displayName: Install flutter packages
         inputs:
           projectDirectory: '.'
-          arguments: 'pub get'
-
-      # - task: FlutterCommand@0
-      #   displayName: Change the package name
-      #   inputs:
-      #     projectDirectory: '.'
-      #     arguments: 'pub run change_app_package_name:main $(APP_ID)'
-
-      # - task: FlutterCommand@0
-      #   displayName: Change the bundle id
-      #   inputs:
-      #     projectDirectory: '.'
-      #     arguments: 'pub run rename --bundleId $(APP_ID) --target android'
-
-      
+          arguments: 'pub get'      
 
       - task: PowerShell@2
         displayName: Save the icon file
@@ -66,25 +52,18 @@ jobs:
           arguments: 'pub run flutter_launcher_icons'
 
       - task: FlutterCommand@0
-        displayName: Change the bundle id
-        inputs:
-          projectDirectory: '.'
-          arguments: 'pub run rename --bundleId $(APP_ID) --target android'
-          #arguments: 'pub run rename --bundleId $(APP_ID) --target android'
-
-      - task: FlutterCommand@0
         displayName: Change the app name
         inputs:
           projectDirectory: '.'
-          arguments: 'pub run rename --appname $(APP_NAME) --target android'
+          arguments: 'pub run rename --bundleId $(APP_ID) --appname $(APP_NAME) --target android'
 
-      - task: CopyFiles@2
-        displayName: Copy manifest to staging directory
-        condition: always()
-        inputs:
-          contents: '**/AndroidManifest.xml'
-          targetFolder: '$(build.artifactStagingDirectory)'
-          OverWrite: true
+      # - task: CopyFiles@2
+      #   displayName: Copy manifest to staging directory
+      #   condition: always()
+      #   inputs:
+      #     contents: '**/AndroidManifest.xml'
+      #     targetFolder: '$(build.artifactStagingDirectory)'
+      #     OverWrite: true
 
       - task: FlutterBuild@0
         displayName: Build Flutter Android app (aab)
@@ -95,7 +74,7 @@ jobs:
           iosCodesign: false
           buildName: $(APP_BUILD_NAME)
           buildNumber: $(APP_BUILD_NUMBER)
-          dartDefine: 'APP_URL=$(APP_URL)'
+          dartDefine: 'PAA_APP_URL=https://idtag.apps.plantanapp.com/Barcode-Testing'
 
       - task: PowerShell@2
         displayName: Save signing key store file
@@ -118,26 +97,11 @@ jobs:
           targetType: inline
           script: Remove-Item -Path $(signingKeyStoreFilePath) -Force 
 
-      # - task: PowerShell@2
-      #   displayName: Delete aab properties file
-      #   condition: always()
-      #   inputs:
-      #     targetType: inline
-      #     script: Remove-Item -Path "$(Build.Repository.LocalPath)/$(aabPropsFileRelativePath)" -Force 
-
       - task: CopyFiles@2
         displayName: Copy aab to staging directory
         condition: always()
         inputs:
           contents: '**/app-release.aab'
-          targetFolder: '$(build.artifactStagingDirectory)'
-          OverWrite: true
-
-      - task: CopyFiles@2
-        displayName: Copy manifest to staging directory
-        condition: always()
-        inputs:
-          contents: '**/AndroidManifest.xml'
           targetFolder: '$(build.artifactStagingDirectory)'
           OverWrite: true
 
