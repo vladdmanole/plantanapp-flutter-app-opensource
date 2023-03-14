@@ -17,6 +17,7 @@ jobs:
   - job: Mobile
     displayName: Build Flutter App
     steps:
+      # Use the jarsigner to sign the application
       - task: JavaToolInstaller@0
         displayName: Install Java 17
         inputs:
@@ -51,20 +52,15 @@ jobs:
           projectDirectory: '.'
           arguments: 'pub run flutter_launcher_icons'
 
-      - task: FlutterCommand@0
+      # FlutterCommand@0 seems to duplicate the " in the arguments.
+      # We need the " to be able to have spaces in the application name when using the rename package.
+      - task: PowerShell@2
         displayName: Change the app name
         inputs:
-          projectDirectory: '.'
-          arguments: 'pub run rename --bundleId $(APP_ID) --appname $(APP_NAME) --target android'
-
-      # - task: CopyFiles@2
-      #   displayName: Copy manifest to staging directory
-      #   condition: always()
-      #   inputs:
-      #     contents: '**/AndroidManifest.xml'
-      #     targetFolder: '$(build.artifactStagingDirectory)'
-      #     OverWrite: true
-
+          targetType: inline
+          script: |
+            $(FlutterToolPath)/flutter pub run rename --bundleId $(APP_ID) --appname "$(APP_NAME)" --target android
+            
       - task: FlutterBuild@0
         displayName: Build Flutter Android app (aab)
         inputs:
@@ -74,7 +70,7 @@ jobs:
           iosCodesign: false
           buildName: $(APP_BUILD_NAME)
           buildNumber: $(APP_BUILD_NUMBER)
-          dartDefine: 'PAA_APP_URL=https://idtag.apps.plantanapp.com/Barcode-Testing'
+          dartDefine: 'PAA_APP_URL=$(APP_URL)'
 
       - task: PowerShell@2
         displayName: Save signing key store file

@@ -53,7 +53,7 @@ dev_dependencies:
 
   # Used to change the app id and name
   #change_app_package_name: ^1.1.0
-  rename: 2.0.1
+  rename: 2.1.1
 
   # Used to generate the icons
   flutter_launcher_icons: "^0.12.0"
