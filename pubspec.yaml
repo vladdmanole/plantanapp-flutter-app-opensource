@@ -38,7 +38,7 @@ dependencies:
   flutter_inappwebview: ^5.7.2+3
   permission_handler: ^10.2.0
   url_launcher: ^6.1.7
-  barcode_scan2: any
+  barcode_scan2: ^4.2.4
 
 dev_dependencies:
   flutter_test:
