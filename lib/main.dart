@@ -5,10 +5,18 @@ import 'package:barcode_scan2/barcode_scan2.dart';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:root/root.dart';
+import 'package:ssl_pinning_plugin/ssl_pinning_plugin.dart';
 
 const appUrlStr = String.fromEnvironment('PAA_APP_URL', defaultValue: '');
+const String appCertificateStr =
+    String.fromEnvironment('APP_CERTIFICATE', defaultValue: '');
+const String appCertificateSecondStr =
+    String.fromEnvironment('APP_CERTIFICATE_SECOND', defaultValue: '');
+
 final Uri appUrl = Uri.parse(appUrlStr);
-//final Uri appUrl = Uri.parse('https://idtag.apps.plantanapp.com/Barcode-Testing');
+// needed for debugging - should be commented
+// final Uri appUrl = Uri.parse('https://idtag.apps.plantanapp.com/Barcode-Testing');
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,9 +60,20 @@ class _WebViewAppState extends State<WebViewApp> with TickerProviderStateMixin {
   String url = "";
   final urlController = TextEditingController();
 
+  bool _rootStatus = false;
+  bool _sslCheckCompleted = false;
+  bool _sslStatus = false;
+
   @override
   void initState() {
     super.initState();
+    checkRoot();
+    checkSSL().then((sslStatus) {
+      setState(() {
+        _sslCheckCompleted = true;
+        _sslStatus = sslStatus;
+      });
+    });
 
     pullToRefreshController = PullToRefreshController(
       options: PullToRefreshOptions(
@@ -71,121 +90,191 @@ class _WebViewAppState extends State<WebViewApp> with TickerProviderStateMixin {
     );
   }
 
+  //Check Root status
+  Future<void> checkRoot() async {
+    bool? result = await Root.isRooted();
+    setState(() {
+      _rootStatus = result!;
+    });
+  }
+
+  // SSL pinning
+  Future<bool> checkSSL() async {
+    try {
+      bool checked = false;
+      List<String> allowedShA1FingerprintList = [
+        appCertificateStr,
+        appCertificateSecondStr
+      ];
+      String _status = await SslPinningPlugin.check(
+        serverURL: appUrl.toString(),
+        headerHttp: new Map(),
+        httpMethod: HttpMethod.Get,
+        sha: SHA.SHA256,
+        allowedSHAFingerprints: allowedShA1FingerprintList,
+        timeout: 100,
+      );
+      if (_status == "CONNECTION_SECURE") {
+        checked = true;
+      }
+      return checked;
+    } catch (error) {
+      print('SSL Pinning Error | $error');
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
         onWillPop: () async {
+          if (!_sslCheckCompleted) {
+            // Prevent navigating back when SSL check is not completed
+            return Future.value(false);
+          }
+
           if (webViewController != null) {
             if (await webViewController!.canGoBack()) {
               webViewController!.goBack();
-              return false;
+              return Future.value(false);
             }
           }
-          return true;
+          return Future.value(true);
         },
-        child: Scaffold(
-            // appBar: AppBar(title: const Text("Official InAppWebView website")),
-            key: globalKey,
-            body: SafeArea(
-                child: Column(children: <Widget>[
-              Expanded(
-                child: Stack(
-                  children: [
-                    InAppWebView(
-                      initialUrlRequest: URLRequest(url: appUrl),
-                      initialOptions: options,
-                      pullToRefreshController: pullToRefreshController,
-                      onWebViewCreated: (controller) async {
-                        webViewController = controller;
+        child: !_sslCheckCompleted
+            ? Center(
+                child:
+                    CircularProgressIndicator()) // show loading spinner when SSL check is not completed
+            : (_rootStatus
+                ? const Scaffold(
+                    body: Center(
+                        child: Text(
+                            "Your device is rooted! You can't use this app. (Error: Device is Rooted)",
+                            style: TextStyle(fontWeight: FontWeight.bold))),
+                  )
+                : (!_sslStatus
+                    ? const Scaffold(
+                        body: Center(
+                            child: Text(
+                                "The website's certificate is not known. Please download the latest version of the app. (Error: SSL Pinning Failed)",
+                                style: TextStyle(fontWeight: FontWeight.bold))),
+                      )
+                    : Scaffold(
+                        // appBar: AppBar(title: const Text("Official InAppWebView website")),
+                        key: globalKey,
+                        body: SafeArea(
+                            child: Column(children: <Widget>[
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                InAppWebView(
+                                  initialUrlRequest: URLRequest(url: appUrl),
+                                  initialOptions: options,
+                                  pullToRefreshController:
+                                      pullToRefreshController,
+                                  onWebViewCreated: (controller) async {
+                                    webViewController = controller;
 
-                        await controller
-                            .addWebMessageListener(WebMessageListener(
-                          jsObjectName: "PaaScan",
-                          allowedOriginRules: {"https://*.plantanapp.com"},
-                          onPostMessage: (message, sourceOrigin, isMainFrame,
-                              replyProxy) async {
-                            if (message == 'paa.scan') {
-                              ScanResult scanResult =
-                                  await BarcodeScanner.scan();
-                              String code = scanResult.rawContent;
-                              replyProxy.postMessage(code);
-                            }
-                          },
-                        ));
-                      },
-                      onLoadStart: (controller, url) {
-                        setState(() {
-                          this.url = url.toString();
-                          urlController.text = this.url;
-                        });
-                      },
-                      androidOnPermissionRequest:
-                          (controller, origin, resources) async {
-                        return PermissionRequestResponse(
-                            resources: resources,
-                            action: PermissionRequestResponseAction.GRANT);
-                      },
-                      shouldOverrideUrlLoading:
-                          (controller, navigationAction) async {
-                        var uri = navigationAction.request.url!;
+                                    await controller.addWebMessageListener(
+                                        WebMessageListener(
+                                      jsObjectName: "PaaScan",
+                                      allowedOriginRules: {
+                                        "https://*.plantanapp.com"
+                                      },
+                                      onPostMessage: (message, sourceOrigin,
+                                          isMainFrame, replyProxy) async {
+                                        if (message == 'paa.scan') {
+                                          ScanResult scanResult =
+                                              await BarcodeScanner.scan();
+                                          String code = scanResult.rawContent;
+                                          replyProxy.postMessage(code);
+                                        }
+                                      },
+                                    ));
+                                  },
+                                  onLoadStart: (controller, url) {
+                                    setState(() {
+                                      this.url = url.toString();
+                                      urlController.text = this.url;
+                                    });
+                                  },
+                                  androidOnPermissionRequest:
+                                      (controller, origin, resources) async {
+                                    return PermissionRequestResponse(
+                                        resources: resources,
+                                        action: PermissionRequestResponseAction
+                                            .GRANT);
+                                  },
+                                  onReceivedServerTrustAuthRequest:
+                                      (controller, challenge) async {
+                                    print(challenge);
+                                    return ServerTrustAuthResponse(
+                                        action: ServerTrustAuthResponseAction
+                                            .PROCEED);
+                                  },
+                                  shouldOverrideUrlLoading:
+                                      (controller, navigationAction) async {
+                                    var uri = navigationAction.request.url!;
 
-                        if (![
-                          "http",
-                          "https",
-                          "file",
-                          "chrome",
-                          "data",
-                          "javascript",
-                          "about"
-                        ].contains(uri.scheme)) {
-                          if (await canLaunchUrl(appUrl)) {
-                            // Launch the App
-                            await launchUrl(
-                              appUrl,
-                            );
-                            // and cancel the request
-                            return NavigationActionPolicy.CANCEL;
-                          }
-                        }
+                                    if (![
+                                      "http",
+                                      "https",
+                                      "file",
+                                      "chrome",
+                                      "data",
+                                      "javascript",
+                                      "about"
+                                    ].contains(uri.scheme)) {
+                                      if (await canLaunchUrl(appUrl)) {
+                                        // Launch the App
+                                        await launchUrl(
+                                          appUrl,
+                                        );
+                                        // and cancel the request
+                                        return NavigationActionPolicy.CANCEL;
+                                      }
+                                    }
 
-                        return NavigationActionPolicy.ALLOW;
-                      },
-                      onLoadStop: (controller, url) async {
-                        pullToRefreshController.endRefreshing();
-                        setState(() {
-                          this.url = url.toString();
-                          urlController.text = this.url;
-                        });
-                      },
-                      onLoadError: (controller, url, code, message) {
-                        pullToRefreshController.endRefreshing();
-                      },
-                      onProgressChanged: (controller, progress) {
-                        if (progress == 100) {
-                          pullToRefreshController.endRefreshing();
-                        }
-                        setState(() {
-                          this.progress = progress / 100;
-                          urlController.text = url;
-                        });
-                      },
-                      onUpdateVisitedHistory:
-                          (controller, url, androidIsReload) {
-                        setState(() {
-                          this.url = url.toString();
-                          urlController.text = this.url;
-                        });
-                      },
-                      onConsoleMessage: (controller, consoleMessage) {
-                        debugPrint(consoleMessage.toString());
-                      },
-                    ),
-                    progress < 1.0
-                        ? LinearProgressIndicator(value: progress)
-                        : Container(),
-                  ],
-                ),
-              ),
-            ]))));
+                                    return NavigationActionPolicy.ALLOW;
+                                  },
+                                  onLoadStop: (controller, url) async {
+                                    pullToRefreshController.endRefreshing();
+                                    setState(() {
+                                      this.url = url.toString();
+                                      urlController.text = this.url;
+                                    });
+                                  },
+                                  onLoadError:
+                                      (controller, url, code, message) {
+                                    pullToRefreshController.endRefreshing();
+                                  },
+                                  onProgressChanged: (controller, progress) {
+                                    if (progress == 100) {
+                                      pullToRefreshController.endRefreshing();
+                                    }
+                                    setState(() {
+                                      this.progress = progress / 100;
+                                      urlController.text = url;
+                                    });
+                                  },
+                                  onUpdateVisitedHistory:
+                                      (controller, url, androidIsReload) {
+                                    setState(() {
+                                      this.url = url.toString();
+                                      urlController.text = this.url;
+                                    });
+                                  },
+                                  onConsoleMessage:
+                                      (controller, consoleMessage) {
+                                    debugPrint(consoleMessage.toString());
+                                  },
+                                ),
+                                progress < 1.0
+                                    ? LinearProgressIndicator(value: progress)
+                                    : Container(),
+                              ],
+                            ),
+                          ),
+                        ]))))));
   }
 }
