@@ -10,9 +10,9 @@ import 'package:ssl_pinning_plugin/ssl_pinning_plugin.dart';
 
 const appUrlStr = String.fromEnvironment('PAA_APP_URL', defaultValue: '');
 const String appCertificateStr =
-    String.fromEnvironment('APP_CERTIFICATE', defaultValue: '');
+    String.fromEnvironment('PAA_APP_CERTIFICATE', defaultValue: '');
 const String appCertificateSecondStr =
-    String.fromEnvironment('APP_CERTIFICATE_SECOND', defaultValue: '');
+    String.fromEnvironment('PAA_APP_CERTIFICATE_SECOND', defaultValue: '');
 
 final Uri appUrl = Uri.parse(appUrlStr);
 // needed for debugging - should be commented

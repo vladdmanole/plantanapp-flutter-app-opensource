@@ -72,8 +72,8 @@ jobs:
           buildNumber: $(APP_BUILD_NUMBER)
           dartDefine: |
             PAA_APP_URL=$(APP_URL)
-            APP_CERTIFICATE_1=$(APP_CERTIFICATE)
-            APP_CERTIFICATE_2=$(APP_CERTIFICATE_SECOND)'PAA_APP_URL=$(APP_URL)'
+            PAA_APP_CERTIFICATE=$(APP_CERTIFICATE_1)
+            PAA_APP_CERTIFICATE_SECOND=$(APP_CERTIFICATE_2)
 
       - task: PowerShell@2
         displayName: Save signing key store file
