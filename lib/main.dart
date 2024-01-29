@@ -1,12 +1,19 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:barcode_scan2/barcode_scan2.dart';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:root/root.dart';
 import 'package:ssl_pinning_plugin/ssl_pinning_plugin.dart';
+
+import 'location_request_type.dart';
+import 'precision.dart';
 
 const appUrlStr = String.fromEnvironment('PAA_APP_URL', defaultValue: '');
 const String appCertificateStr =
@@ -177,6 +184,26 @@ class _WebViewAppState extends State<WebViewApp> with TickerProviderStateMixin {
 
                                     await controller.addWebMessageListener(
                                         WebMessageListener(
+                                      jsObjectName: "PaaFlutterSnackbar",
+                                      onPostMessage: (message, sourceOrigin,
+                                          isMainFrame, replyProxy) async {
+                                        if (message == null) {
+                                          return;
+                                        }
+
+                                        final parsedMessage =
+                                            json.decode(message);
+                                        String snack = parsedMessage['message'];
+                                        ScaffoldMessenger.of(
+                                                globalKey.currentContext!)
+                                            .showSnackBar(
+                                          SnackBar(content: Text(snack)),
+                                        );
+                                      },
+                                    ));
+
+                                    await controller.addWebMessageListener(
+                                        WebMessageListener(
                                       jsObjectName: "PaaScan",
                                       allowedOriginRules: {
                                         "https://*.plantanapp.com"
@@ -188,6 +215,126 @@ class _WebViewAppState extends State<WebViewApp> with TickerProviderStateMixin {
                                               await BarcodeScanner.scan();
                                           String code = scanResult.rawContent;
                                           replyProxy.postMessage(code);
+                                        }
+                                      },
+                                    ));
+
+                                    await controller.addWebMessageListener(
+                                        WebMessageListener(
+                                      jsObjectName: "PaaLocation",
+                                      onPostMessage: (message, sourceOrigin,
+                                          isMainFrame, replyProxy) async {
+                                        if (message == null) {
+                                          return;
+                                        }
+
+                                        final parsedMessage =
+                                            json.decode(message);
+
+                                        LocationAccuracy accuracy;
+                                        switch (parsedMessage['precision']) {
+                                          case Precision.lowest:
+                                            accuracy = LocationAccuracy.lowest;
+                                            break;
+                                          case Precision.low:
+                                            accuracy = LocationAccuracy.low;
+                                            break;
+                                          case Precision.medium:
+                                            accuracy = LocationAccuracy.medium;
+                                            break;
+                                          case Precision.high:
+                                            accuracy = LocationAccuracy.high;
+                                            break;
+                                          case Precision.best:
+                                            accuracy = LocationAccuracy.best;
+                                            break;
+                                          case Precision.bestForNavigation:
+                                            accuracy = LocationAccuracy
+                                                .bestForNavigation;
+                                            break;
+                                          default:
+                                            accuracy = LocationAccuracy.high;
+                                            break;
+                                        }
+
+                                        switch (parsedMessage[
+                                            'locationRequestType']) {
+                                          case LocationRequestType.address:
+                                            // Request location permission
+                                            final permission = await Geolocator
+                                                .requestPermission();
+                                            if (permission ==
+                                                LocationPermission.denied) {
+                                              replyProxy.postMessage(
+                                                  'Location permission denied');
+                                              return;
+                                            }
+
+                                            // Get current position
+                                            Position position = await Geolocator
+                                                .getCurrentPosition(
+                                              desiredAccuracy: accuracy,
+                                            );
+                                            List<Placemark> placemarks =
+                                                await placemarkFromCoordinates(
+                                              position.latitude,
+                                              position.longitude,
+                                            );
+                                            Placemark placemark =
+                                                placemarks.first;
+                                            replyProxy.postMessage(
+                                                placemark.name ??
+                                                    'Unknown location');
+                                            break;
+
+                                          case LocationRequestType.coordinates:
+                                            // Request location permission
+                                            final permission = await Geolocator
+                                                .requestPermission();
+                                            if (permission ==
+                                                LocationPermission.denied) {
+                                              replyProxy.postMessage(
+                                                  'Location permission denied');
+                                              return;
+                                            }
+
+                                            // Get current position
+                                            Position position = await Geolocator
+                                                .getCurrentPosition(
+                                              desiredAccuracy: accuracy,
+                                            );
+                                            replyProxy.postMessage(json.encode({
+                                              'lat': position.latitude,
+                                              'long': position.longitude,
+                                            }));
+                                            break;
+
+                                          case LocationRequestType
+                                                .addressFromCoordinates:
+                                            List<Placemark> placemarks =
+                                                await placemarkFromCoordinates(
+                                              parsedMessage['latitude'],
+                                              parsedMessage['longitude'],
+                                            );
+                                            Placemark placemark =
+                                                placemarks.first;
+                                            replyProxy.postMessage(
+                                                placemark.name ??
+                                                    'Unknown location');
+                                            break;
+
+                                          case LocationRequestType
+                                                .coordinatesFromAddress:
+                                            List<Location> locations =
+                                                await locationFromAddress(
+                                              parsedMessage['locationName'],
+                                            );
+                                            Location location = locations.first;
+                                            replyProxy.postMessage(json.encode({
+                                              'latitude': location.latitude,
+                                              'longitude': location.longitude,
+                                            }));
+                                            break;
                                         }
                                       },
                                     ));
